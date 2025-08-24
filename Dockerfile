@@ -1,14 +1,27 @@
-FROM python:3.10-slim
+# Dockerfile (Hugging Face Spaces - Dash)
+FROM python:3.11-slim
 
-# Evita pyc e força stdout imediato
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
+# (opcional) ferramentas de build para wheels
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+# Dependências Python
+COPY requirements.txt .
+RUN python -m pip install --upgrade pip && pip install -r requirements.txt
+
+# Código da app
 COPY . .
 
-# O Spaces injeta a var $PORT; o gunicorn precisa escutar nela
-CMD ["bash", "-lc", "gunicorn app:server -b 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120"]
+# A Space roteia para a porta 7860
+ENV PORT=7860
+EXPOSE 7860
+
+# Rode o servidor WSGI do Dash/Flask
+CMD ["gunicorn", "app:server", "--bind", "0.0.0.0:7860", "--workers", "2", "--timeout", "120"]
+
